@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# ---- CONFIGURATION ----
+snpeff_jar="/mnt/Kathir/WES_Analysis/Variant_Calling/tools/snpEff/snpEff.jar"
+snpeff_genome="hg19"
+input_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/VCF/VCF_Annotation/snpsift/"
+output_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/VCF/VCF_Annotation/snpeff/"
+memory="96g"
+
+# ---- FUNCTION TO RUN SNPEFF ----
+run_snpeff_annotation() {
+    input_vcf="$1"
+    filename=$(basename "$input_vcf")
+    out_vcf="${output_dir}/${filename}_snpeff.vcf.gz"
+
+    echo "[$(date)] Annotating: $filename"
+    java -Xmx"$memory" -jar "$snpeff_jar" "$snpeff_genome" "$input_vcf" | bgzip -c > "$out_vcf"
+    tabix -f -p vcf "$out_vcf"
+    echo "[$(date)] Done: $out_vcf"
+}
+
+# ---- EXPORTS FOR PARALLEL ----
+export -f run_snpeff_annotation
+export snpeff_jar snpeff_genome output_dir memory
+
+# ---- PARALLEL EXECUTION (15 JOBS) ----
+find "$input_dir" -maxdepth 1 -name "*_snpsift.vcf.gz" | parallel --ungroup -j 15 run_snpeff_annotation {}
