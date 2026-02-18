@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Reference genome
+ref_fasta="/mnt/Kathir/WES_Analysis/Variant_Calling/Ref/hg19.fa"
+
+# Known site for BQSR
+dbsnp="/mnt/Kathir/WES_Analysis/Variant_Calling/dbsnp/dbsnp_156.hg19_converted.vcf.gz"
+
+# Input/output BAM directory
+bam_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/dedup_BAM/Remaining/"
+
+# Temporary directory (ensure it exists)
+tmp_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/tmp/"
+
+# Max number of parallel jobs
+max_jobs=48
+
+# Loop through each BAM file
+for dedup_bam in "$bam_dir"/*.dedup.bam; do
+  (
+    sample=$(basename "$dedup_bam" .dedup.bam)
+    recal_table="${bam_dir}/${sample}.recal.table"
+    recal_bam="${bam_dir}/${sample}.recal.bam"
+
+    echo "============================================"
+    echo "Processing sample: $sample"
+    echo "Input BAM: $dedup_bam"
+
+    # Step 1: BaseRecalibrator
+    echo "[1] Generating recalibration table..."
+    gatk --java-options "-Xmx16g" BaseRecalibrator \
+        -R "$ref_fasta" \
+        -I "$dedup_bam" \
+        --known-sites "$dbsnp" \
+        -O "$recal_table" \
+        --tmp-dir "$tmp_dir"
+
+    # Step 2: ApplyBQSR
+    echo "[2] Applying BQSR..."
+    gatk --java-options "-Xmx16g" ApplyBQSR \
+        -R "$ref_fasta" \
+        -I "$dedup_bam" \
+        --bqsr-recal-file "$recal_table" \
+        -O "$recal_bam" \
+        --tmp-dir "$tmp_dir"
+
+    # Step 3: Index recalibrated BAM
+    echo "[3] Indexing..."
+    samtools index "$recal_bam"
+
+    echo "Finished sample: $sample"
+    echo "============================================"
+    echo
+  ) &
+
+  # Limit concurrent jobs
+  while [[ $(jobs -r -p | wc -l) -ge $max_jobs ]]; do
+    wait -n
+  done
+done
