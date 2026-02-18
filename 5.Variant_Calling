@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Reference genome
+ref_fasta="/mnt/Kathir/WES_Analysis/Variant_Calling/Ref/hg19.fa"
+
+# Directory with recalibrated BAM files
+bam_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/recal_BAM/"
+
+# Output directory for GVCFs (assumed to already exist)
+vcf_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/VCF/"
+
+# Max number of parallel jobs 
+max_jobs=15
+
+# Create list of BAM files
+find "$bam_dir" -name "*.recal.bam" > bam_list.txt
+
+# HaplotypeCaller function
+haplotypecaller() {
+    recal_bam="$1"
+    sample=$(basename "$recal_bam" .recal.bam)
+    vcf_out="${vcf_dir}/${sample}.vcf.gz"
+
+    echo "============================================"
+    echo "Running HaplotypeCaller on sample: $sample"
+    echo "Input BAM: $recal_bam"
+    echo "Output VCF: $vcf_out"
+
+    gatk --java-options "-Xmx96g" HaplotypeCaller \
+        -R "$ref_fasta" \
+        -I "$recal_bam" \
+        -O "$vcf_out" \
+        --native-pair-hmm-threads 16
+
+    echo "Indexing VCF for sample: $sample"
+    gatk IndexFeatureFile -I "$vcf_out"
+
+
+    echo "Finished sample: $sample"
+    echo "--------------------------------------------"
+}
+
+# Export function and variables for parallel
+export -f haplotypecaller
+export ref_fasta bam_dir vcf_dir
+
+# Run in parallel
+parallel --ungroup -j "$max_jobs" haplotypecaller :::: bam_list.txt
