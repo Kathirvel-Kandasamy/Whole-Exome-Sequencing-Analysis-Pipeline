@@ -1,0 +1,34 @@
+#!/bin/bash
+# Reference genome
+ref_fasta="/mnt/Kathir/WES_Analysis/Variant_Calling/Ref/hg19.fa"
+
+# Input/output BAM directory
+bam_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/All_BAM/"
+
+# Loop through each sorted BAM file
+for sorted_bam in "$bam_dir"/*.sorted.bam; do
+    sample=$(basename "$sorted_bam" .sorted.bam)
+
+    echo "============================================"
+    echo "Processing sample: $sample"
+    echo "Input BAM: $sorted_bam"
+
+    # Define paths
+    dedup_bam="${bam_dir}/${sample}.dedup.bam"
+    metrics_file="${bam_dir}/${sample}.metrics.txt"
+
+    # Step 1: Mark duplicates
+    echo "[1] Marking duplicates..."
+    gatk --java-options "-Xmx512g" MarkDuplicates \
+        -I "$sorted_bam" \
+        -O "$dedup_bam" \
+        -M "$metrics_file" \
+        --CREATE_INDEX true
+
+    echo "[1.1] Indexing deduplicated BAM (samtools)..."
+    samtools index "$dedup_bam"
+
+    echo "Finished processing: $sample"
+    echo "============================================"
+    echo
+done
