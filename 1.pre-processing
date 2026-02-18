@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Directory containing FASTQ files
+fastq_dir="/mnt//Kathir/WES_new/QC/QC_Done/"
+
+# Output directory for pre-processed files
+output_dir="/mnt//Kathir/WES_new/pre-processing/"
+
+# Adapter sequences (Nextera)
+ADAPTER_R1="CTGTCTCTTATACACATCTCCGAGCCCACGAGAC"
+ADAPTER_R2="CTGTCTCTTATACACATCTGACGCTGCCGACGA"
+
+# Number of threads to use
+THREADS=64  # Adjust this number based on your system's capabilities
+
+# Process all R1 files in the directory
+for r1_file in "${fastq_dir}"/*_R1_001.fastq.gz; do
+  # Get matching R2 file
+  r2_file="${r1_file/_R1_001.fastq.gz/_R2_001.fastq.gz}"
+
+  # Generate output filenames
+  output_r1="${output_dir}/$(basename "${r1_file}" .fastq.gz)_trimmed.fastq.gz"
+  output_r2="${output_dir}/$(basename "${r2_file}" .fastq.gz)_trimmed.fastq.gz"
+
+  # Run Cutadapt with:
+  # - Pair-end adapter trimming (-a and -A)
+  # - Quality trimming (-q 30)
+  # - Compression of output (.gz)
+  # - Multi-threading (-j)
+  echo "Processing $(basename "${r1_file}") and $(basename "${r2_file}")..."
+
+  cutadapt -a "$ADAPTER_R1" \
+           -A "$ADAPTER_R2" \
+           -q 30 \
+           -o "${output_r1}" \
+           -p "${output_r2}" \
+           -j "$THREADS" \
+           "${r1_file}" \
+           "${r2_file}" > "${output_dir}/$(basename "${r1_file}" _R1_001.fastq.gz)_cutadapt.log"
+done
+
+echo "All files processed. Trimmed files saved to: ${output_dir}"
