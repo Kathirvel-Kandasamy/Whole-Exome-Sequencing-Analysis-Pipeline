@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Directory containing FASTQ files
-fastq_dir="/mnt//Kathir/WES_new/QC/QC_Done/"
+fastq_dir="/mnt/Kathir/WES_new/QC/QC_Done/"
 
 # Output directory for pre-processed files
-output_dir="/mnt//Kathir/WES_new/pre-processing/"
+output_dir="/mnt/Kathir/WES_new/pre-processing/"
 
-# Adapter sequences (Nextera)
+# Adapter sequences 
 ADAPTER_R1="CTGTCTCTTATACACATCTCCGAGCCCACGAGAC"
 ADAPTER_R2="CTGTCTCTTATACACATCTGACGCTGCCGACGA"
 
