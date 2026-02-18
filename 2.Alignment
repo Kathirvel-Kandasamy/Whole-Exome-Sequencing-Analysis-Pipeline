@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Directory containing FASTQ files
+fastq_dir="/run/media//Seagate Hub/mapping_check/"
+
+# Index prefix for BWA
+index_prefix="/run/media//Seagate Hub/Variant_Calling-Kathir/Ref/hg19.fa"
+
+# Output directory for BAM files
+output_dir="/run/media/Seagate Hub/mapping_check/output/"
+
+# Create output directory if it doesn't exist
+mkdir -p "$output_dir"
+
+# Loop over paired-end FASTQ files (assuming R1 and R2 naming convention)
+for read1 in "$fastq_dir"/*_R1_001.fastq.gz; do
+    # Derive paired read2 filename
+    read2="${read1/_R1_001.fastq.gz/_R2_001.fastq.gz}"
+
+    # Sample base name (strip path and suffix)
+    sample_name=$(basename "$read1" _R1_001.fastq.gz)
+
+    # Add RG to the BAM
+    RG="@RG\tID:${sample_name}\tSM:${sample_name}\tPL:ILLUMINA\tLB:lib1\tPU:unit1"
+
+    # Output BAM file names
+    unsorted_bam="$output_dir/${sample_name}.bam"
+    sorted_bam="$output_dir/${sample_name}.sorted.bam"
+
+    # Check if the paired read2 file exists
+    if [[ ! -f "$read2" ]]; then
+        echo "Warning: Paired read file $read2 does not exist. Skipping $read1."
+        continue
+    fi
+
+    echo "Processing sample: $sample_name"
+
+    # Run BWA mem -> convert to BAM -> sort -> index
+    bwa mem -t 64 "$index_prefix" "$read1" "$read2" | \
+        samtools view -b -@ 32 | \
+        samtools sort -@ 32 -o "$sorted_bam"
+
+    # Index the sorted BAM
+    samtools index "$sorted_bam"
+
+    echo "Finished: $sample_name"
+    echo "Output: $sorted_bam and ${sorted_bam}.bai"
+done
