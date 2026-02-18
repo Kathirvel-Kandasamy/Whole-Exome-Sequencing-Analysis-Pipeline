@@ -1,0 +1,22 @@
+#!/bin/bash
+dbsnp_vcf="/mnt/Kathir/WES_Analysis/Variant_Calling/DBs/dbsnp/dbsnp_157.vcf.gz"
+snpsift_jar="/mnt/Kathir/WES_Analysis/Variant_Calling/tools/snpEff/SnpSift.jar"
+vcf_dir="/mnt/Kathir/WES_Analysis/Variant_Calling/VCF/VCF_Annotation/"  
+# Annotation function
+annotate_variant_snpsift_only() {
+    input_vcf="$1"
+    base=$(basename "$input_vcf" .vcf.gz)
+    base=${base%_snpsift}
+
+    out_vcf="${vcf_dir}/${base}_snpsift.vcf.gz"
+
+    echo "[$(date)] Annotating: $base"
+    java -Xmx96g -jar "$snpsift_jar" annotate "$dbsnp_vcf" "$input_vcf" | bgzip -c > "$out_vcf"
+    tabix -f -p vcf "$out_vcf"
+    echo "[$(date)] Done: $out_vcf"
+}
+
+export -f annotate_variant_snpsift_only
+export vcf_dir snpsift_jar dbsnp_vcf
+
+find "$vcf_dir" -name "*.vcf.gz" | parallel --ungroup -j 15 annotate_variant_snpsift_only {}
